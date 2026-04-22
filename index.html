@@ -311,6 +311,60 @@
         .flash-hit     { animation: flashRed  0.3s; }
         .flash-ability { animation: flashBlue 0.3s; }
 
+        /* ── Special encounter screen ── */
+        #special-screen {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: var(--bg);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            gap: 0;
+            padding: 24px;
+        }
+        #special-screen.active { display: flex; }
+
+        #special-screen .spec-tag {
+            font-size: 6px;
+            color: var(--status-col);
+            border: 1px solid var(--status-col);
+            padding: 3px 10px;
+            margin-bottom: 16px;
+            letter-spacing: 2px;
+        }
+        #special-screen h2 {
+            font-size: 13px;
+            color: var(--status-col);
+            text-shadow: 0 0 14px var(--status-col);
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        #special-screen .spec-desc {
+            font-size: 7px;
+            color: var(--text);
+            line-height: 2.6;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        #special-screen .spec-reward {
+            font-size: 7px;
+            color: var(--accent);
+            line-height: 2.4;
+            text-align: center;
+            padding: 10px 16px;
+            border: 1px solid var(--accent);
+            margin-bottom: 22px;
+        }
+        #special-screen .spec-reward::before {
+            content: 'REWARD';
+            display: block;
+            font-size: 6px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
         /* ── Overlays ── */
         .overlay {
             position: absolute;
@@ -346,6 +400,14 @@
 </head>
 <body>
 <div id="game">
+
+    <div id="special-screen">
+        <div class="spec-tag">? SPECIAL ENCOUNTER</div>
+        <h2 id="spec-title">—</h2>
+        <div class="spec-desc" id="spec-desc"></div>
+        <div class="spec-reward" id="spec-reward"></div>
+        <button class="obtn acc" id="spec-continue">CONTINUE ▶</button>
+    </div>
 
     <div id="titlebar">
         <span class="title">WARFRAME: STAR PATH</span>
@@ -476,12 +538,12 @@ const AI = {
    ENCOUNTER GENERATION
 ================================================================ */
 function genEncounters(planet){
-    const list=[];
-    for(let i=0;i<roll(3,5);i++) list.push({type:'combat'});
-    for(let i=0;i<roll(1,2);i++) list.push({type:'special'});
-    for(let i=list.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [list[i],list[j]]=[list[j],list[i]]; }
-    list.push({type:'boss'});
-    return list;
+    // Fixed order: 4 combat → 1 special → 1 boss. No shuffle.
+    return [
+        {type:'combat'},{type:'combat'},{type:'combat'},{type:'combat'},
+        {type:'special'},
+        {type:'boss'}
+    ];
 }
 
 /* ================================================================
@@ -612,9 +674,18 @@ function onWin(){
     G.phase='over';
     const enc=G.encounters[G.encIdx];
     if(enc.type==='boss'){ showPlanetComplete(); return; }
-    G.encIdx++; renderStrip();
-    if(G.encounters[G.encIdx].type==='special') setTimeout(showSpecial,350);
-    else showEncWin();
+
+    // Mark current slot done, advance index
+    G.encIdx++;
+    renderStrip();
+
+    // Route to the correct handler for the next encounter type
+    const next=G.encounters[G.encIdx];
+    if(next.type==='special'){
+        setTimeout(showSpecial, 350);
+    } else {
+        showEncWin();
+    }
 }
 
 function showEncWin(){
@@ -623,9 +694,22 @@ function showEncWin(){
 }
 
 function showSpecial(){
-    const s=SPECIALS[Math.floor(Math.random()*SPECIALS.length)]; s.apply(G.p);
-    const ov=mkOverlay('spec',`<h2>${s.title}</h2><p>${s.desc.replace(/\n/g,'<br>')}</p><div class="reward">${s.reward.replace(/\n/g,'<br>')}</div><button class="obtn acc" id="ob">CONTINUE ▶</button>`);
-    document.getElementById('ob').onclick=()=>{ ov.remove(); G.encIdx++; renderStrip(); G.p.energy=G.p.maxEnergy; startEncounter(); };
+    const s=SPECIALS[Math.floor(Math.random()*SPECIALS.length)];
+    s.apply(G.p);
+
+    // Populate and show the special screen
+    document.getElementById('spec-title').textContent   = s.title;
+    document.getElementById('spec-desc').innerHTML      = s.desc.replace(/\n/g,'<br>');
+    document.getElementById('spec-reward').innerHTML    = s.reward.replace(/\n/g,'<br>');
+    document.getElementById('special-screen').classList.add('active');
+
+    document.getElementById('spec-continue').onclick = () => {
+        document.getElementById('special-screen').classList.remove('active');
+        G.encIdx++;        // advance past the special slot to the boss
+        renderStrip();
+        G.p.energy = G.p.maxEnergy;
+        startEncounter();  // always the boss at this point
+    };
 }
 
 function showPlanetComplete(){
