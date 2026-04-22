@@ -292,6 +292,17 @@
         .btn.ability:hover:not(:disabled) { background: var(--accent); color: var(--bg); box-shadow: 0 0 8px var(--accent); }
         .btn.end { border-color: #505070; flex: 0 0 auto; min-width: auto; padding: 5px 12px; color: #505070; }
         .btn.end:hover:not(:disabled) { background: #505070; color: var(--bg); box-shadow: none; }
+        .btn.end.urgent {
+            border-color: var(--border);
+            color: var(--border);
+            box-shadow: 0 0 8px var(--border);
+            animation: pulse-end 1s ease-in-out infinite;
+        }
+        .btn.end.urgent:hover:not(:disabled) { background: var(--border); color: var(--bg); }
+        @keyframes pulse-end {
+            0%,100% { box-shadow: 0 0 6px var(--border); }
+            50%     { box-shadow: 0 0 14px var(--border), 0 0 28px rgba(200,112,0,0.4); }
+        }
 
         /* ── Damage popup ── */
         .dmg-popup {
@@ -491,7 +502,7 @@ const SPECIALS = [
     { title:'ABANDONED CACHE',   desc:'You find a Grineer weapons cache,\nuntouched since the Old War.',
       reward:'+ 40 HP restored',            apply(p){ p.hp = Math.min(p.maxHp, p.hp+40); } },
     { title:'DEFECTOR CONTACT',  desc:'A Grineer defector offers intel\non enemy weak points.',
-      reward:'+ Full energy restored\n+ Enemy DEF -10% this planet', apply(p){ p.energy=p.maxEnergy; p.debuffEnemy=true; } },
+      reward:'+ Enemy DEF -10% this planet', apply(p){ p.debuffEnemy=true; } },
     { title:'VOID RESONANCE',    desc:'A faint Void signal pulses\nthrough the area, invigorating you.',
       reward:'+ Max HP +20 for this run',   apply(p){ p.maxHp+=20; p.hp=Math.min(p.hp+20,p.maxHp); } },
     { title:'OROKIN RELIC',      desc:'You recover an Orokin relic\nradiating ancient energy.',
@@ -746,6 +757,9 @@ function render(){
     const ids={attack:'btn-atk',slash_dash:'btn-s1',radial_blind:'btn-s2',radial_javelin:'btn-s3',exalted_blade:'btn-s4'};
     for(const [k,id] of Object.entries(ids)) document.getElementById(id).disabled=p.energy<costs[k]||G.whose!=='player';
     document.getElementById('btn-end').disabled=G.whose!=='player';
+    // Highlight end turn when no ability can be used
+    const canAct = G.whose==='player' && Object.keys(costs).some(k=>p.energy>=costs[k]);
+    document.getElementById('btn-end').classList.toggle('urgent', G.whose==='player' && !canAct);
 }
 
 function updateTurnBadge(){
